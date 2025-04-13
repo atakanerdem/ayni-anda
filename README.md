@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aynı Anda
 
-## Getting Started
+Aynı Anda (At the Same Time), insanların şu anda yaptıkları aktiviteleri paylaşmalarını ve aynı aktiviteyi yapan kaç kişi olduğunu görmelerini sağlayan bir web uygulamasıdır.
 
-First, run the development server:
+## Özellikler
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Kullanıcılar şu anda yaptıkları aktiviteyi girebilirler
+- Aynı aktiviteyi yapan kişi sayısı real-time olarak güncellenir
+- En popüler üç aktivite "TREND" etiketi ile işaretlenir
+- Aktiviteler gerçek zamanlı olarak güncellenir (Socket.io ile)
+- Kullanıcılar aktif bir aktiviteyi bitirebilirler
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Teknolojiler
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Veritabanı**: MongoDB
+- **Real-time İletişim**: Socket.io
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Kurulum
 
-## Learn More
+1. Projeyi klonlayın
+   ```
+   git clone https://github.com/yourusername/ayni-anda.git
+   cd ayni-anda
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. Bağımlılıkları yükleyin
+   ```
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. MongoDB'yi yükleyin ve çalıştırın
+   - [MongoDB indirme sayfası](https://www.mongodb.com/try/download/community)
+   - Veya MongoDB Atlas hesabı oluşturun
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. `.env.local` dosyasını düzenleyin
+   ```
+   MONGODB_URI=mongodb://localhost:27017/ayni-anda
+   ```
+   (Eğer MongoDB Atlas kullanıyorsanız, uygun bağlantı URL'sini ekleyin)
 
-## Deploy on Vercel
+5. Uygulamayı geliştirme modunda çalıştırın
+   ```
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+6. Tarayıcınızda `http://localhost:3000` adresine gidin
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Kullanım
+
+1. Ana sayfadaki formda şu an yaptığınız aktiviteyi yazın ve "Başlat" düğmesine tıklayın
+2. Aktiviteniz "Aktif Aktiviteler" listesine eklenecektir
+3. Aynı aktiviteyi yapan başka biri olduğunda, o aktivitenin sayısı artacaktır
+4. Aktivitenizi bitirmek için "Bitir" düğmesine tıklayın
+
+## Dağıtım (Deployment)
+
+Uygulamayı Vercel'e tek tıklamayla deploy edebilirsiniz:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/ayni-anda)
+
+## Lisans
+
+MIT

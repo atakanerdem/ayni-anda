@@ -49,6 +49,71 @@ export default function Home() {
     initSocket();
   }, []);
 
+  // Sayfa yüklendiğinde localStorage'dan aktivite bilgisini al
+  useEffect(() => {
+    const savedActivity = localStorage.getItem('currentActivity');
+    console.log('Saved activity from localStorage:', savedActivity);
+
+    // localStorage kontrolü
+    console.log('All localStorage keys:', Object.keys(localStorage));
+
+    if (savedActivity) {
+      // API'den aktiviteyi kontrol et
+      const checkActivity = async () => {
+        try {
+          const response = await axios.get(`/api/activities/check?name=${encodeURIComponent(savedActivity)}`);
+          const { exists, count } = response.data;
+
+          // Eğer aktivite hala aktifse (count > 0) göster, değilse localStorage'dan temizle
+          if (exists && count > 0) {
+            setCurrentActivity(savedActivity);
+          } else {
+            console.log('Activity no longer active, removing from localStorage');
+            localStorage.removeItem('currentActivity');
+            setCurrentActivity(null);
+          }
+        } catch (error) {
+          console.error('Error checking activity:', error);
+          // Hata durumunda varsayılan davranışı uygula
+          setCurrentActivity(savedActivity);
+        }
+      };
+
+      checkActivity();
+    } else {
+      // Aktivite yoksa state'i temizle
+      setCurrentActivity(null);
+    }
+
+    const currentActivity = localStorage.getItem('currentActivity');
+
+    // Sayfa kapandığında veya yenilendiğinde
+    const handleBeforeUnload = () => {
+      console.log('Page is unloading/refreshing');
+      // Bu işlemler senkron olmalı, localStorage kullanılmalı
+      if (currentActivity) {
+        console.log('Setting unload flag for:', currentActivity);
+        localStorage.setItem('activityUnloaded', 'true');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // Aktivite değiştiğinde localStorage'a kaydet
+  useEffect(() => {
+    console.log('Current activity changed:', currentActivity);
+    if (currentActivity) {
+      localStorage.setItem('currentActivity', currentActivity);
+    } else {
+      localStorage.removeItem('currentActivity');
+    }
+  }, [currentActivity]);
+
   // Fetch activities on initial load
   useEffect(() => {
     fetchActivities();
@@ -76,6 +141,8 @@ export default function Home() {
       });
 
       setCurrentActivity(name);
+      // localStorage'a kaydet
+      localStorage.setItem('currentActivity', name);
 
       // Emit socket event
       if (socket) {
@@ -103,7 +170,13 @@ export default function Home() {
         socket.emit('endActivity', currentActivity);
       }
 
+      // Önce localStorage'dan kaldır
+      console.log('Removing activity from localStorage:', currentActivity);
+      localStorage.removeItem('currentActivity');
+
+      // Sonra state'i temizle
       setCurrentActivity(null);
+
       fetchActivities();
     } catch (error) {
       console.error('Error ending activity:', error);

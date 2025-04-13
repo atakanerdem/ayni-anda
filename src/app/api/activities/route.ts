@@ -7,7 +7,7 @@ export async function GET() {
     try {
         await connectToDatabase();
 
-        const activities = await ActivityModel.find({})
+        const activities = await ActivityModel.find({ count: { $gt: 0 } })
             .sort({ count: -1, createdAt: -1 })
             .limit(50);
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Find the activity or create a new one
+        // Find the activity
         let activity = await ActivityModel.findOne({ name });
 
         if (activity) {
@@ -50,13 +50,23 @@ export async function POST(req: NextRequest) {
             activity.updatedAt = new Date();
             await activity.save();
         } else if (action === 'start') {
-            // Only create a new activity on 'start' action
-            activity = await ActivityModel.create({
-                name,
-                count: 1,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            });
+            // Eğer normal sorguda bulunamadıysa, count=0 olan aktiviteleri de kontrol et
+            activity = await ActivityModel.findOne({ name, count: 0 });
+
+            if (activity) {
+                // Count=0 olan aktiviteyi tekrar kullan
+                activity.count = 1;
+                activity.updatedAt = new Date();
+                await activity.save();
+            } else {
+                // Hiç aktivite bulunamadıysa yeni oluştur
+                activity = await ActivityModel.create({
+                    name,
+                    count: 1,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                });
+            }
         }
 
         return NextResponse.json(activity);

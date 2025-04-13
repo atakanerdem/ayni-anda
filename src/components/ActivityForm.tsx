@@ -102,27 +102,37 @@ export default function ActivityForm({ onStartActivity, isDisabled }: ActivityFo
                             disabled={isDisabled}
                         />
 
-                        {showDropdown && filteredActivities.length > 0 && !isDisabled && (
+                        {showDropdown && !isDisabled && (
                             <div
                                 ref={dropdownRef}
                                 className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
                             >
-                                <ul className="py-1">
-                                    {filteredActivities.map((option) => (
-                                        <li
-                                            key={option._id}
-                                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
-                                            onClick={() => handleActivitySelect(option.name)}
-                                        >
-                                            <span>{option.name}</span>
-                                            {option.count > 0 && (
-                                                <span className="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-1 rounded-full">
-                                                    {option.count} kişi
-                                                </span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                                {isLoading ? (
+                                    <div className="flex justify-center items-center p-4">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-500"></div>
+                                    </div>
+                                ) : filteredActivities.length > 0 ? (
+                                    <ul className="py-1">
+                                        {filteredActivities.map((option) => (
+                                            <li
+                                                key={option._id}
+                                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                                                onClick={() => handleActivitySelect(option.name)}
+                                            >
+                                                <span>{option.name}</span>
+                                                {option.count > 0 && (
+                                                    <span className="bg-indigo-100 text-indigo-800 text-xs font-semibold px-2 py-1 rounded-full">
+                                                        {option.count} kişi
+                                                    </span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : activity.trim() !== '' && (
+                                    <div className="p-4 text-gray-500">
+                                        Eşleşen aktivite bulunamadı
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

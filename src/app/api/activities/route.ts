@@ -3,7 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import ActivityModel from '@/lib/models/Activity';
 
 // GET all activities
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         await connectToDatabase();
 

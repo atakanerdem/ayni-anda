@@ -1,9 +1,7 @@
-import mongoose from 'mongoose';
-
 declare global {
-    var mongoose: {
-        conn: typeof mongoose | null;
-        promise: Promise<typeof mongoose> | null;
+    const mongoose: {
+        conn: unknown | null;
+        promise: Promise<unknown> | null;
     };
 
     interface Activity {
@@ -13,4 +11,6 @@ declare global {
         createdAt?: Date;
         updatedAt?: Date;
     }
-} 
+}
+
+export { }; 

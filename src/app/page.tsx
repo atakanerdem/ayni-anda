@@ -6,6 +6,15 @@ import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
 import axios from 'axios';
 
+// Define the Activity interface locally
+interface Activity {
+  _id?: string;
+  name: string;
+  count: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [currentActivity, setCurrentActivity] = useState<string | null>(null);

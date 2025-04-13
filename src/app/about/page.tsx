@@ -22,8 +22,8 @@ export default function AboutPage() {
                     <li>Ana sayfadaki form aracılığıyla şu an yaptığınız aktiviteyi girin.</li>
                     <li>Aktiviteyi başlattığınızda, o aktiviteyi yapan kişi sayısı bir artar.</li>
                     <li>Aktivite listesinde, hangi aktiviteleri kaç kişinin yaptığını görebilirsiniz.</li>
-                    <li>En popüler üç aktivite, "TREND" etiketi ile işaretlenir.</li>
-                    <li>Aktivitenizi bitirmek istediğinizde "Bitir" düğmesine tıklayın.</li>
+                    <li>En popüler üç aktivite, &quot;TREND&quot; etiketi ile işaretlenir.</li>
+                    <li>Aktivitenizi bitirmek istediğinizde &quot;Bitir&quot; düğmesine tıklayın.</li>
                 </ol>
             </div>
         </div>

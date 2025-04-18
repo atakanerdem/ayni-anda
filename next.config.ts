@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: false, // Socket.io için false olarak ayarlıyoruz
 };
 
 export default nextConfig;

@@ -24,26 +24,35 @@ export default function Home() {
   // Initialize Socket.io connection
   useEffect(() => {
     const initSocket = async () => {
-      // Initialize socket connection
-      await fetch('/api/socket');
+      try {
+        console.log('Initializing socket connection...');
+        const newSocket = io();
 
-      const newSocket = io();
+        newSocket.on('connect', () => {
+          console.log('Socket connected:', newSocket.id);
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
-      });
+          // Bağlantı kurulduktan sonra aktiviteleri talep et
+          newSocket.emit('getActivities');
+        });
 
-      newSocket.on('activityUpdate', ({ name, action }) => {
-        console.log('Activity update received:', name, action);
-        // Fetch the latest activities when an update is received
+        // Tüm aktivite güncellemelerini dinle
+        newSocket.on('activitiesUpdate', (updatedActivities) => {
+          console.log('Activities updated:', updatedActivities);
+          setActivities(updatedActivities);
+          setIsLoading(false);
+        });
+
+        setSocket(newSocket);
+
+        return () => {
+          console.log('Disconnecting socket');
+          newSocket.disconnect();
+        };
+      } catch (error) {
+        console.error('Socket initialization error:', error);
+        // Socket bağlantısı başarısız olursa, API'den aktiviteleri al
         fetchActivities();
-      });
-
-      setSocket(newSocket);
-
-      return () => {
-        newSocket.disconnect();
-      };
+      }
     };
 
     initSocket();
@@ -53,9 +62,6 @@ export default function Home() {
   useEffect(() => {
     const savedActivity = localStorage.getItem('currentActivity');
     console.log('Saved activity from localStorage:', savedActivity);
-
-    // localStorage kontrolü
-    console.log('All localStorage keys:', Object.keys(localStorage));
 
     if (savedActivity) {
       // API'den aktiviteyi kontrol et
@@ -84,24 +90,6 @@ export default function Home() {
       // Aktivite yoksa state'i temizle
       setCurrentActivity(null);
     }
-
-    const currentActivity = localStorage.getItem('currentActivity');
-
-    // Sayfa kapandığında veya yenilendiğinde
-    const handleBeforeUnload = () => {
-      console.log('Page is unloading/refreshing');
-      // Bu işlemler senkron olmalı, localStorage kullanılmalı
-      if (currentActivity) {
-        console.log('Setting unload flag for:', currentActivity);
-        localStorage.setItem('activityUnloaded', 'true');
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
   }, []);
 
   // Aktivite değiştiğinde localStorage'a kaydet
@@ -114,12 +102,7 @@ export default function Home() {
     }
   }, [currentActivity]);
 
-  // Fetch activities on initial load
-  useEffect(() => {
-    fetchActivities();
-  }, []);
-
-  // Fetch activities from the API
+  // Fallback olarak API'den aktiviteleri al
   const fetchActivities = async () => {
     try {
       setIsLoading(true);
@@ -135,21 +118,20 @@ export default function Home() {
   // Start a new activity
   const handleStartActivity = async (name: string) => {
     try {
-      await axios.post('/api/activities', {
-        name,
-        action: 'start'
-      });
-
       setCurrentActivity(name);
-      // localStorage'a kaydet
       localStorage.setItem('currentActivity', name);
 
-      // Emit socket event
-      if (socket) {
+      // Socket üzerinden aktivite başlat
+      if (socket && socket.connected) {
         socket.emit('startActivity', name);
+      } else {
+        // Socket bağlantısı yoksa API'yi kullan
+        await axios.post('/api/activities', {
+          name,
+          action: 'start'
+        });
+        fetchActivities();
       }
-
-      fetchActivities();
     } catch (error) {
       console.error('Error starting activity:', error);
     }
@@ -160,14 +142,16 @@ export default function Home() {
     if (!currentActivity) return;
 
     try {
-      await axios.post('/api/activities', {
-        name: currentActivity,
-        action: 'end'
-      });
-
-      // Emit socket event
-      if (socket) {
+      // Socket üzerinden aktivite bitir
+      if (socket && socket.connected) {
         socket.emit('endActivity', currentActivity);
+      } else {
+        // Socket bağlantısı yoksa API'yi kullan
+        await axios.post('/api/activities', {
+          name: currentActivity,
+          action: 'end'
+        });
+        fetchActivities();
       }
 
       // Önce localStorage'dan kaldır
@@ -176,8 +160,6 @@ export default function Home() {
 
       // Sonra state'i temizle
       setCurrentActivity(null);
-
-      fetchActivities();
     } catch (error) {
       console.error('Error ending activity:', error);
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import ActivityModel from '@/lib/models/Activity';
+import { pusherServer, ACTIVITY_CHANNEL, ACTIVITY_UPDATE_EVENT } from '@/lib/pusher';
 
 // GET all activities
 export async function GET() {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         await connectToDatabase();
 
         const data = await req.json();
-        const { name, action } = data;
+        const { name, action, location } = data;
 
         if (!name) {
             return NextResponse.json(
@@ -43,6 +44,11 @@ export async function POST(req: NextRequest) {
             // Update the count based on action
             if (action === 'start') {
                 activity.count += 1;
+
+                // Eğer konum bilgisi varsa ve aktivitenin henüz konum bilgisi yoksa ekle
+                if (location && (!activity.location || (activity.location.lat === null || activity.location.lng === null))) {
+                    activity.location = location;
+                }
             } else if (action === 'end') {
                 activity.count = Math.max(0, activity.count - 1);
             }
@@ -56,6 +62,12 @@ export async function POST(req: NextRequest) {
             if (activity) {
                 // Count=0 olan aktiviteyi tekrar kullan
                 activity.count = 1;
+
+                // Eğer konum bilgisi varsa ve aktivitenin henüz konum bilgisi yoksa ekle
+                if (location && (!activity.location || (activity.location.lat === null || activity.location.lng === null))) {
+                    activity.location = location;
+                }
+
                 activity.updatedAt = new Date();
                 await activity.save();
             } else {
@@ -63,11 +75,25 @@ export async function POST(req: NextRequest) {
                 activity = await ActivityModel.create({
                     name,
                     count: 1,
+                    location: location || null,
                     createdAt: new Date(),
                     updatedAt: new Date(),
                 });
             }
         }
+
+        // Pusher ile aktivite güncellemesi yayınla
+        await pusherServer.trigger(
+            ACTIVITY_CHANNEL,
+            ACTIVITY_UPDATE_EVENT,
+            {
+                name: activity.name,
+                count: activity.count,
+                _id: activity._id,
+                location: activity.location,
+                action
+            }
+        );
 
         return NextResponse.json(activity);
     } catch (error) {

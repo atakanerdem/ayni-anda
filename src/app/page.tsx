@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
 import axios from 'axios';
+import { pusherClient, ACTIVITY_CHANNEL, ACTIVITY_UPDATE_EVENT } from '@/lib/pusher';
 
 // Define the Activity interface locally
 interface Activity {
@@ -15,38 +15,74 @@ interface Activity {
   updatedAt?: Date;
 }
 
+// Aktiviteleri sıralama fonksiyonu
+const sortActivitiesByCount = (activities: Activity[]) => {
+  return [...activities].sort((a, b) => b.count - a.count);
+};
+
 export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [currentActivity, setCurrentActivity] = useState<string | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize Socket.io connection
+  // Initialize Pusher connection
   useEffect(() => {
-    const initSocket = async () => {
-      // Initialize socket connection
-      await fetch('/api/socket');
+    // Pusher kanalına abone ol
+    const channel = pusherClient.subscribe(ACTIVITY_CHANNEL);
+    console.log('Pusher kanalına abone olundu:', ACTIVITY_CHANNEL);
 
-      const newSocket = io();
+    // Aktivite güncellemeleri dinle
+    channel.bind(ACTIVITY_UPDATE_EVENT, (data: {
+      name: string;
+      count: number;
+      _id: string;
+      action: string;
+    }) => {
+      console.log('Activity update received via Pusher:', data);
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
+      // Var olan aktiviteleri güncelle
+      setActivities(prevActivities => {
+        // Mevcut aktiviteler listesinde bu aktivite var mı kontrol et
+        const existingActivityIndex = prevActivities.findIndex(
+          activity => activity.name === data.name || activity._id === data._id
+        );
+
+        // Eğer aktivite zaten varsa ve sayısı sıfırdan büyükse güncelle
+        if (existingActivityIndex > -1 && data.count > 0) {
+          const updatedActivities = [...prevActivities];
+          updatedActivities[existingActivityIndex] = {
+            ...updatedActivities[existingActivityIndex],
+            count: data.count
+          };
+          return sortActivitiesByCount(updatedActivities);
+        }
+        // Eğer aktivite varsa ve sayısı sıfır olmuşsa listeden çıkar
+        else if (existingActivityIndex > -1 && data.count <= 0) {
+          const filteredActivities = prevActivities.filter(activity =>
+            activity.name !== data.name && activity._id !== data._id
+          );
+          return sortActivitiesByCount(filteredActivities);
+        }
+        // Eğer aktivite listede yoksa ve sayı sıfırdan büyükse listeye ekle
+        else if (existingActivityIndex === -1 && data.count > 0) {
+          return sortActivitiesByCount([...prevActivities, {
+            _id: data._id,
+            name: data.name,
+            count: data.count
+          }]);
+        }
+
+        // Herhangi bir değişiklik yoksa mevcut listeyi döndür
+        return prevActivities;
       });
+    });
 
-      newSocket.on('activityUpdate', ({ name, action }) => {
-        console.log('Activity update received:', name, action);
-        // Fetch the latest activities when an update is received
-        fetchActivities();
-      });
-
-      setSocket(newSocket);
-
-      return () => {
-        newSocket.disconnect();
-      };
+    return () => {
+      // Temizleme
+      console.log('Pusher bağlantısı kapatılıyor');
+      channel.unbind_all();
+      pusherClient.unsubscribe(ACTIVITY_CHANNEL);
     };
-
-    initSocket();
   }, []);
 
   // Sayfa yüklendiğinde localStorage'dan aktivite bilgisini al
@@ -124,6 +160,7 @@ export default function Home() {
     try {
       setIsLoading(true);
       const response = await axios.get('/api/activities');
+      // API'den gelen sıralı verileri doğrudan kullan
       setActivities(response.data);
     } catch (error) {
       console.error('Error fetching activities:', error);
@@ -135,7 +172,8 @@ export default function Home() {
   // Start a new activity
   const handleStartActivity = async (name: string) => {
     try {
-      await axios.post('/api/activities', {
+      setIsLoading(true);
+      const response = await axios.post('/api/activities', {
         name,
         action: 'start'
       });
@@ -144,14 +182,25 @@ export default function Home() {
       // localStorage'a kaydet
       localStorage.setItem('currentActivity', name);
 
-      // Emit socket event
-      if (socket) {
-        socket.emit('startActivity', name);
-      }
+      // Aktiviteyi hemen ekle
+      const newActivity = response.data;
+      setActivities(prevActivities => {
+        const existingIndex = prevActivities.findIndex(a => a.name === newActivity.name);
+        if (existingIndex > -1) {
+          // Varolan aktiviteyi güncelle
+          const updatedActivities = [...prevActivities];
+          updatedActivities[existingIndex] = newActivity;
+          return sortActivitiesByCount(updatedActivities);
+        } else {
+          // Yeni aktivite ekle
+          return sortActivitiesByCount([...prevActivities, newActivity]);
+        }
+      });
 
-      fetchActivities();
+      setIsLoading(false);
     } catch (error) {
       console.error('Error starting activity:', error);
+      setIsLoading(false);
     }
   };
 
@@ -160,15 +209,11 @@ export default function Home() {
     if (!currentActivity) return;
 
     try {
-      await axios.post('/api/activities', {
+      setIsLoading(true);
+      const response = await axios.post('/api/activities', {
         name: currentActivity,
         action: 'end'
       });
-
-      // Emit socket event
-      if (socket) {
-        socket.emit('endActivity', currentActivity);
-      }
 
       // Önce localStorage'dan kaldır
       console.log('Removing activity from localStorage:', currentActivity);
@@ -177,14 +222,34 @@ export default function Home() {
       // Sonra state'i temizle
       setCurrentActivity(null);
 
-      fetchActivities();
+      // Aktiviteyi hemen güncelle
+      const updatedActivity = response.data;
+      setActivities(prevActivities => {
+        // Eğer sayı sıfır olmuşsa, aktiviteyi kaldır
+        if (updatedActivity.count <= 0) {
+          return sortActivitiesByCount(prevActivities.filter(a => a.name !== updatedActivity.name));
+        }
+
+        // Değilse güncelle
+        const existingIndex = prevActivities.findIndex(a => a.name === updatedActivity.name);
+        if (existingIndex > -1) {
+          const newActivities = [...prevActivities];
+          newActivities[existingIndex] = updatedActivity;
+          return sortActivitiesByCount(newActivities);
+        }
+
+        return prevActivities;
+      });
+
+      setIsLoading(false);
     } catch (error) {
       console.error('Error ending activity:', error);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-4 md:p-8">
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold text-indigo-800 mb-3">Aynı Anda</h1>
         <p className="text-gray-600 text-lg">
@@ -197,17 +262,28 @@ export default function Home() {
         isDisabled={!!currentActivity}
       />
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+      {currentActivity && (
+        <div className="bg-white p-4 rounded-lg shadow-md border border-indigo-100">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-medium text-gray-700">Şu anki aktiviten:</h2>
+              <p className="text-xl font-bold text-indigo-600">{currentActivity}</p>
+            </div>
+            <button
+              onClick={handleEndActivity}
+              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+            >
+              Bitir
+            </button>
+          </div>
         </div>
-      ) : (
-        <ActivityList
-          activities={activities}
-          currentActivity={currentActivity}
-          onEndActivity={handleEndActivity}
-        />
       )}
+
+      <ActivityList
+        activities={activities}
+        isLoading={isLoading}
+        currentActivity={currentActivity}
+      />
     </div>
   );
 }

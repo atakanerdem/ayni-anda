@@ -11,6 +11,23 @@ const ActivitySchema = new mongoose.Schema({
         type: Number,
         default: 1,
     },
+    // Konum bilgisi için
+    location: {
+        type: {
+            lat: {
+                type: Number,
+                required: false,
+                default: null
+            },
+            lng: {
+                type: Number,
+                required: false,
+                default: null
+            }
+        },
+        required: false,
+        default: null
+    },
     createdAt: {
         type: Date,
         default: Date.now,

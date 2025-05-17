@@ -3,9 +3,22 @@
 import { useEffect, useState } from 'react';
 import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
-import ActivityMap from '@/components/ActivityMap';
 import axios from 'axios';
 import { pusherClient, ACTIVITY_CHANNEL, ACTIVITY_UPDATE_EVENT } from '@/lib/pusher';
+import dynamic from 'next/dynamic';
+
+// Dynamic import of ActivityMap with SSR disabled
+const ActivityMap = dynamic(
+  () => import('@/components/ActivityMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-gray-100 rounded-lg p-4 h-80 flex items-center justify-center">
+        <p className="text-gray-500">Harita yükleniyor...</p>
+      </div>
+    )
+  }
+);
 
 // Define the Activity interface locally
 interface Activity {

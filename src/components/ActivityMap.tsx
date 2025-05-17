@@ -1,20 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Custom marker icon
-const markerIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
+// Define ActivityLocation interface
 interface ActivityLocation {
     _id?: string;
     name: string;
@@ -30,26 +21,40 @@ interface ActivityMapProps {
 export default function ActivityMap({ activities }: ActivityMapProps) {
     const [isMounted, setIsMounted] = useState(false);
 
-    // Leaflet'in SSR uyumlu olmaması nedeniyle client-side rendering
+    // Initialize Leaflet only on client side
     useEffect(() => {
+        // Set mounted state to true
         setIsMounted(true);
 
-        // Leaflet marker icons fix
+        // Fix for Leaflet marker icons
         delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
-            iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
         });
     }, []);
 
+    // Create marker icon using useMemo to prevent recreating on each render
+    const markerIcon = useMemo(() => L.icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    }), []);
+
+    // Show loading state when component is not mounted (only on client side)
     if (!isMounted) {
-        return <div className="bg-gray-100 rounded-lg p-4 h-80 flex items-center justify-center">
-            <p className="text-gray-500">Harita yükleniyor...</p>
-        </div>;
+        return (
+            <div className="bg-gray-100 rounded-lg p-4 h-80 flex items-center justify-center">
+                <p className="text-gray-500">Harita yükleniyor...</p>
+            </div>
+        );
     }
 
-    const defaultCenter = { lat: 39.9334, lng: 32.8597 }; // Ankara'yı merkez al (veya Türkiye'nin orta noktası)
+    const defaultCenter = { lat: 39.9334, lng: 32.8597 }; // Ankara merkezi
 
     return (
         <div className="bg-white shadow-md rounded-lg p-4">

@@ -5,10 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Default marker icon fixes
-const icon = L.icon({
-    iconUrl: '/images/marker-icon.png',
-    shadowUrl: '/images/marker-shadow.png',
+// Custom marker icon
+const markerIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -34,7 +34,7 @@ export default function ActivityMap({ activities }: ActivityMapProps) {
     useEffect(() => {
         setIsMounted(true);
 
-        // Default icon problemi çözümü
+        // Leaflet marker icons fix
         delete (L.Icon.Default.prototype as any)._getIconUrl;
         L.Icon.Default.mergeOptions({
             iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
@@ -70,7 +70,7 @@ export default function ActivityMap({ activities }: ActivityMapProps) {
                         <Marker
                             key={activity._id || `${activity.lat}-${activity.lng}-${activity.name}`}
                             position={[activity.lat, activity.lng]}
-                            icon={icon}
+                            icon={markerIcon}
                         >
                             <Popup>
                                 <div className="text-center">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import ActivityForm from '@/components/ActivityForm';
 import ActivityList from '@/components/ActivityList';
+import ActivityMap from '@/components/ActivityMap';
 import axios from 'axios';
 import { pusherClient, ACTIVITY_CHANNEL, ACTIVITY_UPDATE_EVENT } from '@/lib/pusher';
 
@@ -11,8 +12,27 @@ interface Activity {
   _id?: string;
   name: string;
   count: number;
+  location?: {
+    lat: number;
+    lng: number;
+  } | null;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+// Location type
+interface Location {
+  lat: number;
+  lng: number;
+}
+
+// Map activity type for markers
+interface MapActivity {
+  _id?: string;
+  name: string;
+  lat: number;
+  lng: number;
+  count: number;
 }
 
 // Aktiviteleri sıralama fonksiyonu
@@ -24,6 +44,34 @@ export default function Home() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [currentActivity, setCurrentActivity] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Konum izni ve kullanıcı konumunu alma
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          console.log("Konum alındı:", position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error("Konum hatası:", error);
+          setLocationError(
+            error.code === 1
+              ? "Konum izni verilmedi."
+              : "Konum bilgisi alınamadı."
+          );
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      setLocationError("Tarayıcınız konum servislerini desteklemiyor.");
+    }
+  }, []);
 
   // Initialize Pusher connection
   useEffect(() => {
@@ -36,6 +84,7 @@ export default function Home() {
       name: string;
       count: number;
       _id: string;
+      location?: Location | null;
       action: string;
     }) => {
       console.log('Activity update received via Pusher:', data);
@@ -52,7 +101,8 @@ export default function Home() {
           const updatedActivities = [...prevActivities];
           updatedActivities[existingActivityIndex] = {
             ...updatedActivities[existingActivityIndex],
-            count: data.count
+            count: data.count,
+            location: data.location || updatedActivities[existingActivityIndex].location
           };
           return sortActivitiesByCount(updatedActivities);
         }
@@ -68,7 +118,8 @@ export default function Home() {
           return sortActivitiesByCount([...prevActivities, {
             _id: data._id,
             name: data.name,
-            count: data.count
+            count: data.count,
+            location: data.location
           }]);
         }
 
@@ -175,7 +226,8 @@ export default function Home() {
       setIsLoading(true);
       const response = await axios.post('/api/activities', {
         name,
-        action: 'start'
+        action: 'start',
+        location: userLocation // Kullanıcı konumunu gönder
       });
 
       setCurrentActivity(name);
@@ -248,6 +300,19 @@ export default function Home() {
     }
   };
 
+  // Harita için aktiviteleri hazırla
+  const prepareMapActivities = (): MapActivity[] => {
+    return activities
+      .filter(activity => activity.location && activity.location.lat && activity.location.lng)
+      .map(activity => ({
+        _id: activity._id,
+        name: activity.name,
+        lat: activity.location!.lat,
+        lng: activity.location!.lng,
+        count: activity.count
+      }));
+  };
+
   return (
     <div className="space-y-8 p-4 md:p-8">
       <div className="text-center mb-10">
@@ -284,6 +349,18 @@ export default function Home() {
         isLoading={isLoading}
         currentActivity={currentActivity}
       />
+
+      {locationError ? (
+        <div className="bg-yellow-50 p-4 rounded-lg shadow border border-yellow-200">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Konum Haritası</h2>
+          <p className="text-yellow-700">{locationError}</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Haritayı görmek için konum izni vermeniz gerekmektedir. Tarayıcı ayarlarından konum iznini etkinleştirebilirsiniz.
+          </p>
+        </div>
+      ) : (
+        <ActivityMap activities={prepareMapActivities()} />
+      )}
     </div>
   );
 }

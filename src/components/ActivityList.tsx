@@ -39,11 +39,7 @@ export default function ActivityList({ activities, currentActivity, isLoading }:
                                         TREND
                                     </span>
                                 )}
-                                {activity.name === currentActivity && (
-                                    <span className="ml-2 px-2 py-1 bg-indigo-100 text-indigo-800 text-xs font-semibold rounded-full">
-                                        SENIN AKTIVITEN
-                                    </span>
-                                )}
+
                             </div>
                             <div className="flex items-center">
                                 <div className="flex items-center justify-center h-8 w-8 rounded-full bg-indigo-100 text-indigo-800 font-semibold">

@@ -360,7 +360,6 @@ export default function Home() {
       <ActivityList
         activities={activities}
         isLoading={isLoading}
-        currentActivity={currentActivity}
       />
 
       {locationError ? (

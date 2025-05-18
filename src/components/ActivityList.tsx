@@ -8,11 +8,10 @@ interface Activity {
 
 interface ActivityListProps {
     activities: Activity[];
-    currentActivity: string | null;
     isLoading: boolean;
 }
 
-export default function ActivityList({ activities, currentActivity, isLoading }: ActivityListProps) {
+export default function ActivityList({ activities, isLoading }: ActivityListProps) {
     return (
         <div className="bg-white shadow-md rounded-lg p-6">
             <div className="flex justify-between items-center mb-6">

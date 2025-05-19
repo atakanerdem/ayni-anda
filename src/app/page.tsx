@@ -25,10 +25,11 @@ interface Activity {
   _id?: string;
   name: string;
   count: number;
-  location?: {
+  locations: {
     lat: number;
     lng: number;
-  } | null;
+    count: number;
+  }[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -97,16 +98,19 @@ export default function Home() {
       name: string;
       count: number;
       _id: string;
-      location?: Location | null;
+      locations: {
+        lat: number;
+        lng: number;
+        count: number;
+      }[];
       action: string;
     }) => {
       console.log('Activity update received via Pusher:', data);
 
-      // Var olan aktiviteleri güncelle
       setActivities(prevActivities => {
         // Mevcut aktiviteler listesinde bu aktivite var mı kontrol et
         const existingActivityIndex = prevActivities.findIndex(
-          activity => activity.name === data.name || activity._id === data._id
+          activity => activity.name === data.name && activity._id === data._id
         );
 
         // Eğer aktivite zaten varsa ve sayısı sıfırdan büyükse güncelle
@@ -115,7 +119,7 @@ export default function Home() {
           updatedActivities[existingActivityIndex] = {
             ...updatedActivities[existingActivityIndex],
             count: data.count,
-            location: data.location || updatedActivities[existingActivityIndex].location
+            locations: data.locations || updatedActivities[existingActivityIndex].locations
           };
           return sortActivitiesByCount(updatedActivities);
         }
@@ -132,7 +136,7 @@ export default function Home() {
             _id: data._id,
             name: data.name,
             count: data.count,
-            location: data.location
+            locations: data.locations
           }]);
         }
 
@@ -316,14 +320,16 @@ export default function Home() {
   // Harita için aktiviteleri hazırla
   const prepareMapActivities = (): MapActivity[] => {
     return activities
-      .filter(activity => activity.location && activity.location.lat && activity.location.lng)
-      .map(activity => ({
-        _id: activity._id,
-        name: activity.name,
-        lat: activity.location!.lat,
-        lng: activity.location!.lng,
-        count: activity.count
-      }));
+      .filter(activity => activity.locations && activity.locations.length > 0)
+      .flatMap(activity =>
+        activity.locations.map(location => ({
+          _id: activity._id,
+          name: activity.name,
+          lat: location.lat,
+          lng: location.lng,
+          count: location.count
+        }))
+      );
   };
 
   return (

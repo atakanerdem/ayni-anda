@@ -3,6 +3,12 @@ import { connectToDatabase } from '@/lib/mongodb';
 import ActivityModel from '@/lib/models/Activity';
 import { pusherServer, ACTIVITY_CHANNEL, ACTIVITY_UPDATE_EVENT } from '@/lib/pusher';
 
+// Location type definition
+interface Location {
+    lat: number;
+    lng: number;
+}
+
 // GET all activities
 export async function GET() {
     try {
@@ -28,7 +34,7 @@ export async function POST(req: NextRequest) {
         await connectToDatabase();
 
         const data = await req.json();
-        const { name, action, location } = data;
+        const { name, action, location } = data as { name: string; action: string; location?: Location };
 
         if (!name) {
             return NextResponse.json(
@@ -45,41 +51,59 @@ export async function POST(req: NextRequest) {
             if (action === 'start') {
                 activity.count += 1;
 
-                // Eğer konum bilgisi varsa ve aktivitenin henüz konum bilgisi yoksa ekle
-                if (location && (!activity.location || (activity.location.lat === null || activity.location.lng === null))) {
-                    activity.location = location;
+                // Add or update location
+                if (location) {
+                    const existingLocationIndex = activity.locations.findIndex(
+                        (loc: Location) => loc.lat === location.lat && loc.lng === location.lng
+                    );
+
+                    if (existingLocationIndex > -1) {
+                        // Update existing location count
+                        activity.locations[existingLocationIndex].count += 1;
+                    } else {
+                        // Add new location
+                        activity.locations.push({
+                            lat: location.lat,
+                            lng: location.lng,
+                            count: 1
+                        });
+                    }
                 }
             } else if (action === 'end') {
                 activity.count = Math.max(0, activity.count - 1);
+
+                // Decrease location count if location is provided
+                if (location) {
+                    const locationIndex = activity.locations.findIndex(
+                        (loc: Location) => loc.lat === location.lat && loc.lng === location.lng
+                    );
+
+                    if (locationIndex > -1) {
+                        activity.locations[locationIndex].count = Math.max(0, activity.locations[locationIndex].count - 1);
+
+                        // Remove location if count is 0
+                        if (activity.locations[locationIndex].count === 0) {
+                            activity.locations.splice(locationIndex, 1);
+                        }
+                    }
+                }
             }
 
             activity.updatedAt = new Date();
             await activity.save();
-        } else if (action === 'start') {
-            // Eğer normal sorguda bulunamadıysa, count=0 olan aktiviteleri de kontrol et
-            activity = await ActivityModel.findOne({ name, count: 0 });
-
-            if (activity) {
-                // Count=0 olan aktiviteyi tekrar kullan
-                activity.count = 1;
-
-                // Eğer konum bilgisi varsa ve aktivitenin henüz konum bilgisi yoksa ekle
-                if (location && (!activity.location || (activity.location.lat === null || activity.location.lng === null))) {
-                    activity.location = location;
-                }
-
-                activity.updatedAt = new Date();
-                await activity.save();
-            } else {
-                // Hiç aktivite bulunamadıysa yeni oluştur
-                activity = await ActivityModel.create({
-                    name,
-                    count: 1,
-                    location: location || null,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                });
-            }
+        } else {
+            // Create new activity
+            activity = await ActivityModel.create({
+                name,
+                count: 1,
+                locations: location ? [{
+                    lat: location.lat,
+                    lng: location.lng,
+                    count: 1
+                }] : [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            });
         }
 
         // Pusher ile aktivite güncellemesi yayınla
@@ -90,7 +114,7 @@ export async function POST(req: NextRequest) {
                 name: activity.name,
                 count: activity.count,
                 _id: activity._id,
-                location: activity.location,
+                locations: activity.locations,
                 action
             }
         );

@@ -74,7 +74,7 @@ export default function ActivityMap({ activities }: ActivityMapProps) {
 
                     {activities.map((activity) => (
                         <Marker
-                            key={activity._id || `${activity.lat}-${activity.lng}-${activity.name}`}
+                            key={`${activity._id}-${activity.lat}-${activity.lng}`}
                             position={[activity.lat, activity.lng]}
                             icon={markerIcon}
                         >
